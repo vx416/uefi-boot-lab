@@ -56,11 +56,8 @@ memory, enumerate devices, configure interrupts, and bind drivers.
 ## Table Of Contents
 
 - [Boot And Hardware Description Mental Model](#boot-and-hardware-description-mental-model)
-- [Hardware Questions And Description Sources](#hardware-questions-and-description-sources)
-- [Boot-To-Descriptor Path In This Lab](#boot-to-descriptor-path-in-this-lab)
+- [Handoff Data And Description Sources](#handoff-data-and-description-sources)
 - [Project Scope](#project-scope)
-- [What The Project Builds](#what-the-project-builds)
-- [What The Project Collects](#what-the-project-collects)
 - [Project Layout](#project-layout)
 - [Quick Start](#quick-start)
 - [Build A Custom OVMF BIOS Image](#build-a-custom-ovmf-bios-image)
@@ -79,41 +76,35 @@ Physical hardware
   -> BIOS / UEFI publishes hardware description entry points
   -> loader / pre-OS UEFI program is loaded by firmware
   -> loader or pre-OS diagnostics can read firmware handoff data
-  -> loader builds the boot handoff model it needs
-  -> loader passes the handoff model to the kernel entry point
+  -> loader builds the **boot handoff model** it needs
+  -> loader passes the **handoff model** to the kernel entry point
   -> loader exits firmware boot services when ready
   -> loader transfers control to the kernel
   -> kernel parses descriptors and builds its own hardware model
   -> kernel starts drivers and userspace
 ```
 
-In this project, `FirmwareView.efi` is not a full loader. It is a pre-OS UEFI
-program for observing the same discovery step a loader needs: receiving hardware
-description data that BIOS / UEFI published before the OS starts.
+The key idea is that boot is not only "load kernel bytes and jump." Firmware
+first prepares the execution environment and publishes hardware descriptions.
+The loader passes the kernel the **handoff model** it needs. The kernel then parses
+those descriptors and builds the hardware model it will use to manage memory,
+interrupts, devices, drivers, and userspace.
 
-```text
-firmware entry points
-  -> descriptor data
-  -> firmware-view.json
-```
+The handoff data is the bridge between firmware and the kernel. It tells the
+kernel which memory ranges are safe to use, where firmware-owned or reserved
+regions are, where ACPI and SMBIOS descriptions start, how interrupts and PCIe
+roots are wired, and how device configuration space can be reached. Without that
+context, the kernel would enter C code but would not yet know how to safely
+manage the machine.
 
-The important debugging habit is to trace a boot or hardware field backward:
+The next section breaks the **handoff model** into the concrete data sources a
+loader or kernel depends on.
 
-```text
-observed platform field looks wrong
-  -> loader collected the wrong descriptor?
-  -> kernel interpreted the descriptor differently?
-  -> firmware table wrong?
-  -> BIOS setup / platform configuration wrong?
-  -> hardware wiring wrong?
-```
+## Handoff Data And Description Sources
 
-## Hardware Questions And Description Sources
-
-During boot, the loader and kernel do not learn the whole machine from one
-place. They build context step by step: first how to talk to firmware, then
-where the descriptor tables are, then what those descriptors say about memory,
-topology, devices, and identity.
+The **handoff model** is not one single table. It is built from several firmware
+interfaces and hardware description sources. Each source answers a different
+question the loader or kernel needs before the OS can safely manage the machine.
 
 ```text
 firmware interface
@@ -125,15 +116,32 @@ firmware interface
   -> out-of-band management view
 ```
 
-| Boot Order | What The Loader / Kernel Needs To Know | Provided By | Why Important / Linux View |
+| Context Layer | What The Loader / Kernel Needs To Know | Provided By | Why Important / Linux View |
 | --- | --- | --- | --- |
-| 1. Firmware interface | How does a loader talk to firmware? | UEFI `EFI_SYSTEM_TABLE`, Boot Services, Runtime Services | proves the boot path and firmware interface; visible in early boot logs and UEFI variables |
-| 2. Description entry points | Where do ACPI, SMBIOS, and custom tables start? | UEFI `ConfigurationTable` GUID-to-pointer entries | wrong pointers mean the OS cannot find platform descriptions; captured in firmware JSON |
-| 3. Memory ownership | Which physical address ranges are usable or reserved? | UEFI memory map, e820 | wrong ownership can break boot, runtime services, or device resources; visible in `/proc/iomem` and `dmesg` |
-| 4. Platform topology | How are CPUs, interrupts, PCIe roots, NUMA, IOMMU, timers, and power described? | ACPI RSDP, XSDT/RSDT, FACP, MADT/APIC, MCFG, SRAT, SLIT, DMAR | wrong topology breaks CPU, IRQ, NUMA, PCIe, or power behavior; visible through kernel ACPI parsing, `lscpu`, `numactl -H`, `lspci` |
-| 5. Device configuration | Which PCIe devices exist and how are they configured? | ACPI MCFG + PCIe config space | maps devices to slots and debugs BARs, link speed, and driver binding; visible in `lspci -vvv` and `lspci -tv` |
-| 6. Hardware identity | Which machine, BIOS, board, CPU socket, and DIMMs are present? | SMBIOS Type 0/1/2/3/4/17 | confirms actual hardware identity and FRUs; visible in `dmidecode` |
-| 7. Management view | What can the management controller see out-of-band? | BMC sensors, FRU, SEL, Redfish/IPMI | validates hardware even when host OS is down; visible through Redfish and `ipmitool` |
+| Firmware interface | How does a loader talk to firmware? | UEFI `EFI_SYSTEM_TABLE`, Boot Services, Runtime Services | proves the boot path and firmware interface; visible in early boot logs and UEFI variables |
+| Description entry points | Where do ACPI, SMBIOS, and custom tables start? | UEFI `ConfigurationTable` GUID-to-pointer entries | wrong pointers mean the OS cannot find platform descriptions; captured in firmware JSON |
+| Memory ownership | Which physical address ranges are usable or reserved? | UEFI memory map, e820 | wrong ownership can break boot, runtime services, or device resources; visible in `/proc/iomem` and `dmesg` |
+| Platform topology | How are CPUs, interrupts, PCIe roots, NUMA, IOMMU, timers, and power described? | ACPI RSDP, XSDT/RSDT, FACP, MADT/APIC, MCFG, SRAT, SLIT, DMAR | wrong topology breaks CPU, IRQ, NUMA, PCIe, or power behavior; visible through kernel ACPI parsing, `lscpu`, `numactl -H`, `lspci` |
+| Device configuration | Which PCIe devices exist and how are they configured? | ACPI MCFG + PCIe config space | maps devices to slots and debugs BARs, link speed, and driver binding; visible in `lspci -vvv` and `lspci -tv` |
+| Hardware identity | Which machine, BIOS, board, CPU socket, and DIMMs are present? | SMBIOS Type 0/1/2/3/4/17 | confirms actual hardware identity and FRUs; visible in `dmidecode` |
+| Management view | What can the management controller see out-of-band? | BMC sensors, FRU, SEL, Redfish/IPMI | validates hardware even when host OS is down; visible through Redfish and `ipmitool` |
+
+In a datacenter bring-up or hardware replacement case, these questions become a
+debugging path. If the observed platform does not match the expected design,
+start from the OS-visible symptom and walk backward through the layers:
+
+```text
+Linux sees the wrong platform state
+  -> did Linux parse the expected descriptor?
+  -> did the loader or pre-OS collector see the descriptor?
+  -> did firmware publish the right table or memory map?
+  -> did BIOS setup enable the expected platform feature?
+  -> does the installed hardware match the design?
+```
+
+The point is not to memorize table names first. The point is to know which
+source answers which hardware question, then use that path to locate where the
+firmware-to-OS view started to diverge.
 
 Short version:
 
@@ -146,9 +154,33 @@ PCIe config        = device self-description
 BMC / Redfish      = out-of-band management view
 ```
 
-## Boot-To-Descriptor Path In This Lab
+## Project Scope
 
-This project models a small BIOS producer and a pre-OS consumer:
+The project currently models a mini server-platform validation flow.
+
+It has four main modules:
+
+- `expected-platform.yaml`: the expected platform contract used by diagnostics.
+- `FirmwareProducerDxe`: a small OVMF DXE driver that simulates BIOS firmware
+  publishing a platform identity table through UEFI `ConfigurationTable`.
+- `FirmwareView.efi`: a pre-OS UEFI application that observes what hardware
+  description data a loader receives from BIOS / UEFI, then writes
+  `firmware-view.json`. It collects firmware vendor, UEFI revision, memory map
+  summary, UEFI configuration table entries, ACPI table list, MADT/MCFG details,
+  SMBIOS entry point, PCIe config-space scan results, and the custom lab
+  firmware producer table.
+- `tools/platform_report.py`: a typed Python Linux-side collector and report
+  generator. It collects `/proc/iomem`, `dmesg` e820/EFI lines, `dmidecode`,
+  `lspci -vvv`, `lspci -tv`, `lscpu`, and `numactl -H`, then compares the
+  observed state against the expected platform contract.
+
+`FirmwareView.efi` is a learning snapshot of the pre-OS firmware view. It shows
+what a loader-like UEFI program can receive from BIOS / UEFI before Linux
+starts. Real platform validation is done from the Linux OS view and diagnostics
+report, because that is where the kernel has consumed the firmware descriptions,
+enumerated devices, bound drivers, and exposed the final interpreted state.
+
+The firmware-to-JSON path in this lab is:
 
 ```text
 OVMF / BIOS image
@@ -192,15 +224,7 @@ PCIe config space
   -> BDF, vendor/device ID, class, BAR, capability, link information
 ```
 
-## Project Scope
-
-The project currently models a mini server-platform validation flow.
-
-`FirmwareView.efi` is a learning snapshot of the pre-OS firmware view. It shows
-what a loader-like UEFI program can receive from BIOS / UEFI before Linux
-starts. Real platform validation is done from the Linux OS view and diagnostics
-report, because that is where the kernel has consumed the firmware descriptions,
-enumerated devices, bound drivers, and exposed the final interpreted state.
+The validation flow is:
 
 | Step | Role | Component | What It Does | Output |
 | --- | --- | --- | --- | --- |
@@ -229,40 +253,6 @@ required_linux_artifacts:
   - lscpu
 ```
 
-## What The Project Builds
-
-- `expected-platform.yaml`: the expected platform contract used by diagnostics.
-- `FirmwareProducerDxe`: a tiny DXE driver that simulates BIOS firmware
-  publishing a platform identity table through UEFI `ConfigurationTable`.
-- `FirmwareView.efi`: a pre-OS UEFI application that observes what hardware
-  description data a loader receives from BIOS / UEFI, then writes
-  `firmware-view.json`.
-- `tools/platform_report.py`: a typed Python Linux-side collector and report
-  generator.
-
-## What The Project Collects
-
-Firmware view:
-
-- firmware vendor and UEFI revision
-- UEFI memory map summary
-- UEFI configuration table entries
-- ACPI RSDP and XSDT/RSDT table list
-- ACPI MADT and MCFG details
-- SMBIOS entry point
-- basic PCIe config-space scan from firmware view
-- custom lab firmware producer table
-
-Linux view:
-
-- `/proc/iomem`
-- `dmesg` e820 / EFI memory lines
-- `dmidecode`
-- `lspci -vvv`
-- `lspci -tv`
-- `lscpu`
-- `numactl -H`
-
 ## Project Layout
 
 ```text
@@ -272,8 +262,6 @@ Linux view:
 ├── src/FirmwareView/         # UEFI pre-OS collector
 ├── tools/                    # Linux collector and report writer
 ├── scripts/                  # build, OVMF, smoke, and e2e helpers
-├── docs/                     # curated learning docs
-├── notes/                    # scratch notes, ignored by git
 ├── expected-platform.yaml    # expected platform validation contract
 ├── UefiBootLabPkg.dec        # EDK II package declaration
 ├── UefiBootLabPkg.dsc        # EDK II package build description
