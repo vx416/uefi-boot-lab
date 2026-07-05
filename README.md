@@ -274,6 +274,13 @@ cd ~/uefi-boot-lab
 EDK2_TOOLCHAIN=GCCNOLTO GCCNOLTO_BIN=x86_64-linux-gnu- make build
 ```
 
+The Vagrant provision step prepares the EDK II workspace at
+`~/workspace/edk2`, links this repo as `~/workspace/edk2/UefiBootLabPkg`, and
+sets `EDK2_WORKSPACE=$HOME/workspace/edk2` in the VM shell. `make build` calls
+`scripts/build-firmware-view.sh`, which sources `edksetup.sh` from that
+workspace before running the EDK II `build` command. If you use your own EDK II
+checkout instead of the Vagrant VM, see [Native EDK II Layout](#native-edk-ii-layout).
+
 Build outputs:
 
 ```text
@@ -297,15 +304,20 @@ cd ~/uefi-boot-lab
 EDK2_TOOLCHAIN=GCCNOLTO GCCNOLTO_BIN=x86_64-linux-gnu- make ovmf
 ```
 
+Note: `make ovmf` modifies the edk2 checkout under `~/workspace/edk2` by
+patching OVMF's DSC and FDF files so OVMF dispatches `FirmwareProducerDxe`
+during DXE. Use a disposable edk2 checkout for this lab, or review
+`scripts/build-ovmf-with-producer.sh` before running it against an existing EDK
+II workspace.
+
 Output:
 
 ```text
 /home/vagrant/workspace/edk2/Build/OvmfX64/DEBUG_GCCNOLTO/FV/OVMF_CODE.fd
 ```
 
-`make ovmf` patches the VM's edk2 checkout by adding
-`UefiBootLabPkg/src/FirmwareProducerDxe/FirmwareProducerDxe.inf` to OVMF's DSC
-and FDF files, then rebuilds OVMF. It also adds
+The patch adds `UefiBootLabPkg/src/FirmwareProducerDxe/FirmwareProducerDxe.inf`
+to OVMF's DSC and FDF files, then rebuilds OVMF. It also adds
 `-Wno-error=maybe-uninitialized` for current distro GCC compatibility.
 
 ## Smoke Test
