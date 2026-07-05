@@ -10,7 +10,9 @@ The goal is not to build a full bootloader. The goal is to build a small
 diagnostics lab that answers this question:
 
 ```text
-Can we trace how server hardware is described by firmware, interpreted by Linux, and validated against an expected platform design?
+Can we trace how server hardware is described by firmware,
+interpreted by Linux,
+and validated against an expected platform design?
 ```
 
 This repo uses QEMU + OVMF so the whole flow can be practiced locally.
@@ -160,24 +162,24 @@ The project currently models a mini server-platform validation flow.
 It has four main modules:
 
 - `expected-platform.yaml`: the expected platform contract used by diagnostics.
-- `FirmwareProducerDxe`: a small OVMF DXE driver that simulates BIOS firmware
-  publishing a platform identity table through UEFI `ConfigurationTable`.
-- `FirmwareView.efi`: a pre-OS UEFI application that observes what hardware
-  description data a loader receives from BIOS / UEFI, then writes
-  `firmware-view.json`. It collects firmware vendor, UEFI revision, memory map
-  summary, UEFI configuration table entries, ACPI table list, MADT/MCFG details,
-  SMBIOS entry point, PCIe config-space scan results, and the custom lab
-  firmware producer table.
+- `FirmwareProducerDxe`: a small OVMF DXE driver that simulates one narrow class
+  of BIOS-side producer behavior by publishing a custom platform identity table
+  through UEFI `ConfigurationTable`.
+- `FirmwareView.efi`: a loader-like pre-OS UEFI program that observes what BIOS
+  / UEFI provides before Linux starts, then writes `firmware-view.json`. It
+  collects firmware vendor, UEFI revision, memory map summary, UEFI
+  configuration table entries, ACPI table list, MADT/MCFG details, SMBIOS entry
+  point, PCIe config-space scan results, and the custom lab firmware producer
+  table.
 - `tools/platform_report.py`: a typed Python Linux-side collector and report
   generator. It collects `/proc/iomem`, `dmesg` e820/EFI lines, `dmidecode`,
   `lspci -vvv`, `lspci -tv`, `lscpu`, and `numactl -H`, then compares the
   observed state against the expected platform contract.
 
-`FirmwareView.efi` is a learning snapshot of the pre-OS firmware view. It shows
-what a loader-like UEFI program can receive from BIOS / UEFI before Linux
-starts. Real platform validation is done from the Linux OS view and diagnostics
-report, because that is where the kernel has consumed the firmware descriptions,
-enumerated devices, bound drivers, and exposed the final interpreted state.
+`FirmwareView.efi` is a learning snapshot, not the final validation authority.
+Real platform validation is done from the Linux OS view and diagnostics report,
+because that is where the kernel has consumed firmware descriptions, enumerated
+devices, bound drivers, and exposed the final interpreted state.
 
 The firmware-to-JSON path in this lab is:
 
@@ -190,19 +192,6 @@ OVMF / BIOS image
   -> FirmwareView captures descriptor data
   -> EFI/UEFI-BOOT-LAB/firmware-view.json
 ```
-
-`FirmwareProducerDxe` is a small OVMF DXE driver that simulates one narrow class
-of BIOS-side producer behavior. In a real BIOS image, DXE drivers initialize
-devices and publish platform data before the OS loader starts. This lab's
-producer publishes a small custom GUID-tagged platform identity table so the
-diagnostics path can verify that firmware, the pre-OS collector, and the
-expected platform contract agree on the platform ID.
-
-`FirmwareView.efi` represents a loader-like pre-OS UEFI program. It is not the
-production telemetry path and it is not a kernel loader. Its job is to observe
-what BIOS / UEFI provides to a loader: the UEFI system table, memory map, ACPI
-entry point, SMBIOS entry point, PCIe configuration path, and the lab's custom
-platform identity table.
 
 The descriptor view is structured metadata about the machine:
 
