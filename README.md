@@ -10,8 +10,7 @@ The goal is not to build a full bootloader. The goal is to build a small
 diagnostics lab that answers this question:
 
 ```text
-Can we trace how server hardware is described by firmware,
-interpreted by Linux,
+Can we trace how server hardware is described by firmware, interpreted by Linux,
 and validated against an expected platform design?
 ```
 
