@@ -16,32 +16,6 @@ Linux, and validated against an expected platform design?
 
 This repo uses QEMU + OVMF so the whole flow can be practiced locally.
 
-## What This Demonstrates
-
-- basic EDK II / OVMF build flow
-- a tiny DXE firmware producer publishing a GUID table
-- a UEFI pre-OS consumer collecting firmware handoff data
-- Linux-side collection of OS-visible platform state
-- `expected-platform.yaml` validation with PASS / WARN / FAIL checks
-
-## Table Of Contents
-
-- [What This Demonstrates](#what-this-demonstrates)
-- [Why Learn This](#why-learn-this)
-- [Boot And Hardware Description Mental Model](#boot-and-hardware-description-mental-model)
-- [Hardware Questions And Description Sources](#hardware-questions-and-description-sources)
-- [Boot-To-Descriptor Path In This Lab](#boot-to-descriptor-path-in-this-lab)
-- [Project Scope](#project-scope)
-- [What The Project Builds](#what-the-project-builds)
-- [What The Project Collects](#what-the-project-collects)
-- [Project Layout](#project-layout)
-- [Quick Start](#quick-start)
-- [Build A Custom OVMF BIOS Image](#build-a-custom-ovmf-bios-image)
-- [Smoke Test](#smoke-test)
-- [End-To-End Test](#end-to-end-test)
-- [Make Targets](#make-targets)
-- [Native EDK II Layout](#native-edk-ii-layout)
-
 ## Why Learn This
 
 The kernel is the manager of hardware resources. It decides how memory is used,
@@ -70,6 +44,30 @@ The loader / pre-OS phase needs answers such as:
 Without this layer, the kernel entry point is just code running with very little
 context. The kernel still needs a map of the platform before it can safely manage
 memory, enumerate devices, configure interrupts, and bind drivers.
+
+## What This Demonstrates
+
+- basic EDK II / OVMF build flow
+- a tiny DXE firmware producer publishing a GUID table
+- a UEFI pre-OS consumer collecting firmware handoff data
+- Linux-side collection of OS-visible platform state
+- `expected-platform.yaml` validation with PASS / WARN / FAIL checks
+
+## Table Of Contents
+
+- [Boot And Hardware Description Mental Model](#boot-and-hardware-description-mental-model)
+- [Hardware Questions And Description Sources](#hardware-questions-and-description-sources)
+- [Boot-To-Descriptor Path In This Lab](#boot-to-descriptor-path-in-this-lab)
+- [Project Scope](#project-scope)
+- [What The Project Builds](#what-the-project-builds)
+- [What The Project Collects](#what-the-project-collects)
+- [Project Layout](#project-layout)
+- [Quick Start](#quick-start)
+- [Build A Custom OVMF BIOS Image](#build-a-custom-ovmf-bios-image)
+- [Smoke Test](#smoke-test)
+- [End-To-End Test](#end-to-end-test)
+- [Make Targets](#make-targets)
+- [Native EDK II Layout](#native-edk-ii-layout)
 
 ## Boot And Hardware Description Mental Model
 
