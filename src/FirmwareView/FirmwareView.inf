@@ -1,0 +1,54 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = FirmwareView
+  FILE_GUID                      = C3A73679-4C53-437D-A25F-0D690810E1D9
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = UefiMain
+
+[Sources]
+  FirmwareView.c
+  Acpi/AcpiTables.c
+  Acpi/Madt.c
+  Acpi/Mcfg.c
+  Firmware/BootInfo.c
+  Firmware/ConfigTables.c
+  Firmware/ProducerLoader.c
+  Memory/MemoryMap.c
+  Pci/PciConfig.c
+  Report/FirmwareJson.c
+  Smbios/Smbios.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  UefiBootLabPkg/UefiBootLabPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  BaseMemoryLib
+  MemoryAllocationLib
+  PrintLib
+  UefiBootServicesTableLib
+  UefiLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+
+[Guids]
+  gEfiAcpi10TableGuid
+  gEfiAcpi20TableGuid
+  gEfiAcpiTableGuid
+  gEfiDebugImageInfoTableGuid
+  gEfiHobListGuid
+  gEfiJsonCapsuleDataTableGuid
+  gEfiJsonCapsuleResultTableGuid
+  gEfiJsonConfigDataTableGuid
+  gEfiMemoryAttributesTableGuid
+  gEfiMpsTableGuid
+  gEfiRtPropertiesTableGuid
+  gEfiSmbiosTableGuid
+  gEfiSmbios3TableGuid
+  gEfiSystemResourceTableGuid
+  gFdtTableGuid
+  gUefiBootLabPlatformTableGuid

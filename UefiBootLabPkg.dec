@@ -1,0 +1,11 @@
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = UefiBootLabPkg
+  PACKAGE_GUID                   = 5D18054A-73E7-4B7A-A087-2B6E70FDE62F
+  PACKAGE_VERSION                = 0.1
+
+[Includes]
+  Include
+
+[Guids]
+  gUefiBootLabPlatformTableGuid = { 0x7c159769, 0x3550, 0x4a8e, { 0xa0, 0x74, 0x42, 0x82, 0x56, 0x8f, 0x68, 0x35 } }

@@ -1,0 +1,14 @@
+platform_id: uefi-boot-lab-q35
+expected_firmware_vendors:
+  - Ubuntu distribution of EDK II
+  - EDK II
+required_acpi_tables:
+  - FACP
+  - APIC
+  - MCFG
+min_memory_mib: 512
+require_smbios: true
+required_linux_artifacts:
+  - dmidecode
+  - lspci_vvv
+  - lscpu
